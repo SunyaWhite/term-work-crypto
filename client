@@ -1,0 +1,21 @@
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1-alpine as build
+
+WORKDIR ./app
+
+COPY ./ClientApp ./ClientApp
+COPY ./CommonFiles ./CommonFiles
+
+WORKDIR ./ClientApp
+
+RUN dotnet restore
+RUN dotnet publish -c Release --no-restore -o publish --self-contained=false
+
+FROM mcr.microsoft.com/dotnet/core/runtime:3.1 as final
+
+LABEL maintainer="sunyawhite12@gmail.com" name="Term work client" version="1.0.0.0"
+
+WORKDIR ./app
+
+COPY --from=build ./app/ClientApp/publish .
+
+ENTRYPOINT ["dotnet", "ClientApp.dll" ]
