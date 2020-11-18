@@ -80,27 +80,6 @@ namespace ClientApp.Services
         }
 
         /// <summary>
-        /// Generate corrupted signature for payload
-        /// </summary>
-        /// <param name="payload"></param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
-        private Task<string> SignDataWithCorruptedSignature<T>(T payload)
-        {
-            var jsonData = JsonSerializer.Serialize(payload, _opts);
-            
-            using var hmac = new HMACSHA256(Key);
-            using var buffer = new MemoryStream(Encoding.Default.GetBytes(jsonData));
-            var hmacSignature = hmac.ComputeHash(buffer);
-            // Insert small changes
-            hmacSignature.InsertCorruption();
-            
-            _logger.LogInformation("Corrupted signature is formed ...");
-            
-            return Task.FromResult(Convert.ToBase64String(hmacSignature));
-        }
-
-        /// <summary>
         /// Send some dummy request. Generate HMAC to sign it
         /// </summary>
         /// <param name="falseSignature"></param>
@@ -114,18 +93,22 @@ namespace ClientApp.Services
 
                 var someText = TextData.LOREM_IPSUM;
                 
-                    var payload = new CustomRequest
+                var payload = new CustomRequest
                 {
                     Text = someText,
                     Int = randomInt
                 };
 
                 _logger.LogInformation("Payload is formed ...");
+                
+                var signature = await SignDataAsync(payload);
 
-                // Generating signatures
-                var signature = falseSignature
-                    ? await SignDataWithCorruptedSignature(payload)
-                    : await SignDataAsync(payload);
+                // Insert corruption into data
+                if (falseSignature)
+                {
+                    payload.Text = payload.Text.InsertCorruption();
+                    _logger.LogError($"Inserted corruption into sent data.");
+                }
 
                 using (var client = new HttpClient())
                 {
